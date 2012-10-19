@@ -1,0 +1,361 @@
+#ifndef TO_JSON_HPP  
+#define TO_JSON_HPP  
+#include <string>
+#include <vector>
+#include <map>
+
+inline
+void json_encode(std::string &sString) {
+        int length = sString.length();
+        char buf[length * 10 + 128];
+        memset(buf, 0, sizeof(buf));
+
+        char* it = (char*) sString.c_str();
+        char *out = buf;
+
+        for (int i = 0; i < length; i++) {
+                if (((unsigned char) *it > 0x80) && ((unsigned char) *it < 0xff)) {
+                        if (i == (length - 1)) {
+                                *out = 0; 
+                                it++;
+                        } else {
+			  // copy 双字节, 不过滤
+				*out = *it;
+                                out++;
+                                it++;
+
+                                *out = *it;
+                                out++;
+                                it++;
+                                i++;
+                        }
+
+                        continue;
+                }
+
+                switch (*it) {
+                case '<':
+                        memcpy(out, "&lt;", strlen("&lt;"));
+                        out += strlen("&lt;");
+                        break;
+
+                case '>':
+                        memcpy(out, "&gt;", strlen("&gt;"));
+                        out += strlen("&gt;");
+                        break;
+
+                        // 不过滤&, 输入的时候过滤
+                        /*case '&':
+                        memcpy(out, "&amp;", strlen("&amp;"));
+                        out += strlen("&amp;");
+                        break;*/
+
+                case '\"':
+                        memcpy(out, "&quot;", strlen("&quot;"));
+                        out += strlen("&quot;");
+                        break;
+
+                case '\'':
+                        memcpy(out, "&#39;", strlen("&#39;"));
+                        out += strlen("&#39;");
+                        break;
+
+                case '\\':
+                        memcpy(out, "&#92;", strlen("&#92;"));
+                        out += strlen("&#92;");
+                        break;
+
+                case '\n':
+                        memcpy(out, "\\n", strlen("\\n"));
+                        out += strlen("\\n");
+                        break;
+
+                case '\r':
+                        memcpy(out, "\\r", strlen("\\r"));
+                        out += strlen("\\r");
+                        break;
+
+                case '\t':
+                        memcpy(out, "\\t", strlen("\\t"));
+                        out += strlen("\\t");
+                        break;
+
+                        break;
+
+                default:
+                        if (!((*it) >= 0 && (*it) <= 31 && (*it) != 9 && (*it) != 10
+                                && (*it) != 13)) {
+                                        *out = *it;
+                                        out++;
+                        }
+                }
+                it++;
+        }
+        sString = buf;
+        return;
+}
+
+#define DEF_BASETYPE_TO_JSON(fmt, type) \
+inline \
+void to_json_value(std::string &out, type value) { \
+    char buffer[sizeof(typeof(value))*3+4]; \
+    snprintf(buffer, sizeof(buffer), fmt, value); \
+    out.append(buffer); \
+} \ 
+inline \
+std::string to_json(type value) { \
+	std::string out; \
+	to_json_value(out, value); \
+	return out; \
+} \
+
+
+
+DEF_BASETYPE_TO_JSON("%d", int)
+DEF_BASETYPE_TO_JSON("%u", unsigned int)
+DEF_BASETYPE_TO_JSON("%ld", long)
+DEF_BASETYPE_TO_JSON("%lu", unsigned long)
+DEF_BASETYPE_TO_JSON("%lld", long long)
+DEF_BASETYPE_TO_JSON("%llu", unsigned long long)
+DEF_BASETYPE_TO_JSON("%f", double) 
+DEF_BASETYPE_TO_JSON("%Lf", long double) 
+
+
+inline
+void to_json_value(std::string &out, std::string str) { 
+	json_encode(str);
+	out.append("\"");
+	out.append(str);
+	out.append("\"");
+}
+
+inline
+void to_json_value(std::string &out, char const * str) {
+	to_json_value(out, std::string(str));
+}
+
+template <typename t>
+inline
+void to_json_value(std::string & out, std::vector<t> const & vec) {
+	out.append("["); 
+	for ( size_t i=0, len=vec.size();
+            i<len; ++i){ 
+	       if (i > 0) out.append(",");
+	       to_json_value(out, vec[i]);
+	}
+	out.append("]"); 
+}
+
+
+#define to_json_attr2(out, name, value) \
+    do { \
+        out.append("\""); \
+        out.append(name); \
+        out.append("\""); \
+        out.append(":"); \
+        to_json_helper(out, value); \
+    } while(0)\
+
+#define to_json_attr(out, name) \
+    do { \
+        to_json_attr2(out, #name, name); \
+    } while(0) \
+
+template <typename t>
+inline
+void to_json_value(std::string & out, std::map<std::string, t> const & map) {
+       out.append("{"); 
+    size_t i=0;
+    for (typeof(map.begin()) it = map.begin(), iend = map.end(); 
+        it!=iend; ++it, ++i) {
+       if (i > 0) out.append(",");
+       to_json_attr2(out, it->first, it->second); 
+    }
+   out.append("}"); 
+}
+
+template <typename t>
+inline
+void to_json_value(std::string & out, std::map<char *, t> const & map) {
+       out.append("{"); 
+    size_t i=0;
+    for (typeof(map.begin()) it = map.begin(), iend = map.end(); 
+        it!=iend; ++it, ++i) {
+       if (i > 0) out.append(",");
+       to_json_attr2(out, it->first, it->second); 
+    }
+   out.append("}"); 
+}
+
+template <typename t>
+inline
+void to_json_value(std::string & out, std::map<char const *, t> const & map) {
+       out.append("{"); 
+    size_t i=0;
+    for (typeof(map.begin()) it = map.begin(), iend = map.end(); 
+        it!=iend; ++it, ++i) {
+       if (i > 0) out.append(",");
+       to_json_attr2(out, it->first, it->second); 
+    }
+   out.append("}"); 
+}
+
+
+#define BASE_TYPE_MAP_TO_JSON(t1) \
+template <typename t> \
+inline \
+void to_json_value(std::string & out, std::map<t1, t> const & map) { \
+       out.append("{"); \
+    size_t i=0; \
+    for (typeof(map.begin()) it = map.begin(), iend = map.end(); \
+        it!=iend; ++it, ++i) { \
+       if (i > 0) out.append(","); \
+       std::string key; \
+       to_json_value(key, it->first); \
+       to_json_attr2(out, key, it->second); \
+    }  \
+   out.append("}"); \
+} \
+
+BASE_TYPE_MAP_TO_JSON(char)
+BASE_TYPE_MAP_TO_JSON(int)
+BASE_TYPE_MAP_TO_JSON(short int)
+BASE_TYPE_MAP_TO_JSON(long)
+BASE_TYPE_MAP_TO_JSON(long long)
+
+BASE_TYPE_MAP_TO_JSON(unsigned char)
+BASE_TYPE_MAP_TO_JSON(unsigned int)
+BASE_TYPE_MAP_TO_JSON(unsigned short int)
+BASE_TYPE_MAP_TO_JSON(unsigned long)
+BASE_TYPE_MAP_TO_JSON(unsigned long long)
+
+//BASE_TYPE_MAP_TO_JSON(uint8_t)
+//BASE_TYPE_MAP_TO_JSON(uint16_t)
+//BASE_TYPE_MAP_TO_JSON(uint32_t)
+//BASE_TYPE_MAP_TO_JSON(uint64_t)
+//
+//BASE_TYPE_MAP_TO_JSON(int8_t)
+//BASE_TYPE_MAP_TO_JSON(int16_t)
+//BASE_TYPE_MAP_TO_JSON(int32_t)
+//BASE_TYPE_MAP_TO_JSON(int64_t)
+
+
+template <typename t>
+inline 
+void to_json_value(std::string & out, t const &v) {
+    v.to_json_value(out);
+}
+
+template <typename t>
+inline
+std::string to_json(t const & v) {
+    std::string out;
+    to_json_value(out, v);
+    return out;
+}
+
+template <typename t>
+inline
+std::string to_json_helper(t const & v) {
+    return to_json(v);
+}
+
+template <typename t>
+inline 
+void to_json_helper(std::string & out, t const &v) {
+    to_json_value(out, v);
+}
+
+#define DEF_TO_JSON1(type, arg1) \
+inline \
+void to_json_value(std::string & out, type const & v) { \
+    out.append("{"); \
+    to_json_attr2(out, #arg1, v.arg1);   \
+    out.append("}"); \
+} \  
+inline \
+std::string to_json(type const & v) { \
+    std::string out; \
+    to_json_value(out, v); \
+    return out; \
+} \
+
+
+
+$range i 2..30 
+$for i [[
+
+$range j 1..i
+#define DEF_TO_JSON$(i)(type $for j [[, arg$(j)]] ) \
+inline \
+void to_json_value(std::string & out, type const & v) { \
+    out.append("{"); \
+    to_json_attr2(out, #arg1, v.arg1);   \
+$range j 2..i 
+$for j [[ 
+    out.append(",");  \ 
+    to_json_attr2(out, #arg$(j), v.arg$(j)); \ 
+]]
+
+    out.append("}"); \ 
+} \ 
+inline \
+std::string to_json(type const & v) { \
+    std::string out; \
+    to_json_value(out, v); \
+    return out; \
+} \
+
+
+
+]]
+
+
+#define DEF_TO_JSON_MEM1(arg1) \
+inline \
+void to_json_value(std::string & out) const { \
+    out.append("{"); \
+    to_json_attr2(out, #arg1 , this->arg1);   \
+    out.append("}"); \
+} \ 
+inline   \
+std::string to_json() const { \
+    std::string out; \
+    this->to_json_value(out); \
+    return out; \
+} \  
+
+
+
+$range i 2..30 
+$for i [[
+
+$range j 2..i
+#define DEF_TO_JSON_MEM$(i)(arg1 $for j [[, arg$(j)]] ) \
+inline \
+void to_json_value(std::string & out) const { \
+    out.append("{"); \
+    to_json_attr2(out, #arg1, this->arg1);   \
+$range j 2..i 
+$for j [[ 
+    out.append(",");  \ 
+    to_json_attr2(out, #arg$(j), this->arg$(j)); \ 
+]]
+
+    out.append("}"); \ 
+} \ 
+inline   \
+std::string to_json() const { \
+    std::string out; \
+    this->to_json_value(out); \
+    return out; \
+} \  
+
+
+
+]]
+
+
+
+
+#endif  //TO_JSON_HPP  
