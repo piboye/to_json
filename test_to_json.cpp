@@ -30,7 +30,7 @@ int main(int argc, const char *argv[])
     a.b.push_back(3);
     a.b.push_back(4);
     a.c.i=4;
-    a.c.name="piboye";
+    a.c.name="dady";
     a.c.other.push_back("hello");
     a.c.other.push_back("world");
 
