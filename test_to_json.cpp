@@ -31,8 +31,8 @@ int main(int argc, const char *argv[])
     a.b.push_back(4);
     a.c.i=4;
     a.c.name="piboye";
-    a.c.other.push_back("piboye1");
-    a.c.other.push_back("piboye2");
+    a.c.other.push_back("hello");
+    a.c.other.push_back("world");
 
     std::string out = to_json(a);
     printf("%s\n", out.c_str());
