@@ -14,25 +14,6 @@ void json_encode(std::string &sString) {
         char *out = buf;
 
         for (int i = 0; i < length; i++) {
-                if (((unsigned char) *it > 0x80) && ((unsigned char) *it < 0xff)) {
-                        if (i == (length - 1)) {
-                                *out = 0; 
-                                it++;
-                        } else {
-			  // copy 双字节, 不过滤
-				*out = *it;
-                                out++;
-                                it++;
-
-                                *out = *it;
-                                out++;
-                                it++;
-                                i++;
-                        }
-
-                        continue;
-                }
-
                 switch (*it) {
                 case '<':
                         memcpy(out, "&lt;", strlen("&lt;"));
@@ -43,12 +24,6 @@ void json_encode(std::string &sString) {
                         memcpy(out, "&gt;", strlen("&gt;"));
                         out += strlen("&gt;");
                         break;
-
-                        // 不过滤&, 输入的时候过滤
-                        /*case '&':
-                        memcpy(out, "&amp;", strlen("&amp;"));
-                        out += strlen("&amp;");
-                        break;*/
 
                 case '\"':
                         memcpy(out, "&quot;", strlen("&quot;"));
