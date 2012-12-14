@@ -7,3 +7,5 @@ test_to_json: test_to_json.cpp to_json.hpp
 to_json.hpp: to_json.hpp.pump
 	./pump.py $^
 
+clean:
+	rm -rf *.o test_to_json
